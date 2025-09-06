@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 'autojump' 또는 'zoxide'
+JUMP_IMPL="${JUMP_IMPL:-autojump}"
+
 REPO_URL="https://raw.githubusercontent.com/SuperLeeK/ohmyzsh/main"
 REPO_CLONE_URL="https://github.com/SuperLeeK/ohmyzsh.git"
 DOTFILES_DIR="$HOME/.dotfiles"
 ZSH_CUSTOM_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
-msg() { echo -e "\033[1;32m[+]\033[0m $*"; }
-warn() { echo -e "\033[1;33m[!]\033[0m $*"; }
-err() { echo -e "\033[1;31m[x]\033[0m $*"; }
+msg()  { echo -e "\033[1;32m[+] \033[0m$*"; }
+warn() { echo -e "\033[1;33m[!] \033[0m$*"; }
+err()  { echo -e "\033[1;31m[x] \033[0m$*"; }
 
 require_macos() {
-  if [[ "$(uname)" != "Darwin" ]]; then
-    err "This installer targets macOS."; exit 1
-  fi
+  [[ "$(uname)" == "Darwin" ]] || { err "This installer targets macOS."; exit 1; }
 }
 
 install_xcode_cli() {
@@ -31,6 +32,9 @@ install_homebrew() {
     if [[ -d "/opt/homebrew/bin" ]]; then
       echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
       eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -x "/usr/local/bin/brew" ]]; then
+      echo 'eval "$(/usr/local/bin/brew shellenv)"' >> "$HOME/.zprofile"
+      eval "$(/usr/local/bin/brew shellenv)"
     fi
   fi
 }
@@ -48,7 +52,7 @@ clone_repo() {
     git -C "$DOTFILES_DIR" pull --rebase --autostash
   else
     msg "Cloning dotfiles repo to $DOTFILES_DIR ..."
-    git clone "$REPO_CLONE_URL" "$DOTFILES_DIR"
+    git clone "$REPO_CLONE_URL" "$DOTFILES_DIR" || warn "Failed to clone dotfiles repo"
   fi
 }
 
@@ -78,19 +82,36 @@ install_plugins() {
   done < "$list_file"
 }
 
+install_autojump() {
+  msg "Installing autojump..."
+  brew list --formula | grep -q '^autojump$' || brew install autojump
+}
+
+install_zoxide() {
+  msg "Installing zoxide..."
+  brew list --formula | grep -q '^zoxide$'  || brew install zoxide
+}
+
 link_zshrc() {
   msg "Linking .zshrc ..."
   if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]]; then
     cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d%H%M%S)"
   fi
-  ln -snf "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
+  if [[ -f "$DOTFILES_DIR/zsh/.zshrc" ]]; then
+    ln -snf "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
+  else
+    warn "$DOTFILES_DIR/zsh/.zshrc not found; leaving current ~/.zshrc in place."
+  fi
 }
 
 set_default_shell() {
   if [[ "$SHELL" != *"/zsh" ]]; then
     msg "Changing default shell to zsh..."
-    local zsh_path=$(command -v zsh)
-    if ! grep -q "$zsh_path" /etc/shells; then echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null; fi
+    local zsh_path
+    zsh_path="$(command -v zsh)"
+    if ! grep -q "$zsh_path" /etc/shells; then
+      echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null
+    fi
     chsh -s "$zsh_path"
   fi
 }
@@ -103,8 +124,16 @@ main() {
   brew_bundle || true
   install_ohmyzsh
   install_plugins
+
+  case "$JUMP_IMPL" in
+    autojump) install_autojump ;;
+    zoxide)   install_zoxide ;;
+    *) warn "Unknown JUMP_IMPL=$JUMP_IMPL (use 'autojump' or 'zoxide')" ;;
+  esac
+
   link_zshrc
   set_default_shell
+
   msg "All done! Open a new terminal window (or run 'exec zsh')."
 }
 
