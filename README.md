@@ -5,11 +5,19 @@
 ---
 
 ## 🚀 One‑liner (curl)
+
+**macOS (기본 전체 설치)**
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/SuperLeeK/ohmyzsh/main/install.sh)"
 ```
 설치 스크립트 실행 시 어떤 항목들을 설치할지 묻는 프롬프트가 나타납니다.
 숫자를 콤마(`,`)로 구분하여 원하시는 번호들만 입력하시면 됩니다 (예: `1,2,4`).
+
+**Ubuntu / WSL (Zsh + 테마 + 플러그인 등 터미널 환경 최소 설치)**
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/SuperLeeK/ohmyzsh/main/install_ubuntu.sh)"
+```
+우분투 환경에서는 프롬프트 없이 Zsh, Oh My Zsh, 테마 및 커스텀 플러그인만 빠르게 설치하고 기본 셸로 지정합니다.
 
 1. **Oh My Zsh** (Zsh, 플러그인, NVM, Node 스택 등)
 2. **Homebrew Apps** (CLI 툴 및 기본 GUI 앱)
@@ -70,7 +78,8 @@ JUMP_IMPL=zoxide /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Su
 ## 리포 구조 (파일 커스터마이징)
 ```
 .
-├─ install.sh                  # 메인 설치 스크립트 (선택형 프롬프트 포함)
+├─ install.sh                  # 메인 설치 스크립트 (선택형 프롬프트 포함, macOS)
+├─ install_ubuntu.sh           # 우분투/WSL용 터미널 환경 전용 설치 스크립트
 ├─ zsh/
 │  ├─ .zshrc                   # 고정 zshrc (main)
 │  ├─ .zsh_env                 # 환경변수 및 PATH 설정
