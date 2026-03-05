@@ -400,7 +400,7 @@ prompt_install_options() {
 }
 
 main() {
-  require_macos
+  # require_macos
   install_xcode_cli
   
   prompt_install_options
