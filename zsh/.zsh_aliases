@@ -1,0 +1,144 @@
+# Git 관련 별칭
+alias gi="gInit"
+alias g1="git log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset' --abbrev-commit"
+alias gg="git log"
+alias gd="gdFC"
+alias ga="gaFC"
+alias gr="grFC"
+alias gb='gbFC'
+alias gsw='gswFC'
+alias gco="gcoFC"
+alias gl="git pull"
+alias gp='git push'
+alias gs='git status'
+alias gcm='git commit -m'
+alias ㅎ츠='gcm'
+alias gcma='git commit -a -m'
+alias gca='git commit --amend'
+alias gitsubpull="git submodule foreach git pull"
+alias gitsubinit="git submodule update --init --recursive"
+git-stash-apply-by-message() {
+    local message="$1"
+    local stash_index=$(git stash list | grep "$message" | head -1 | sed 's/stash@{\([0-9]*\)}.*/\1/')
+    if [ -n "$stash_index" ]; then
+        git stash apply "stash@{$stash_index}"
+    else
+        echo "Stash with message '$message' not found"
+    fi
+}
+alias gsam="git-stash-apply-by-message"
+alias gsame="git-stash-apply-by-message \"exclude_not_ts_file_with_folders\""
+alias gssiu="git stash save $@ --include-untracked"
+
+# options
+## port
+port8081="--port=8081"
+port8082="--port=8082"
+port8083="--port=8083"
+port8084="--port=8084"
+## terminal
+terminalVS="--terminal=vscode"
+## simulator
+iPhone16="\"iPhone 16\""
+iPhone16Plus="\"iPhone 16 Plus\""
+iPhone16Pro="\"iPhone 16 Pro\""
+iPhone16PM="\"iPhone 16 Pro Max\""
+iPhone16e="\"iPhone 16e\""
+
+# yarn 관련 별칭
+alias ya="yarn android"
+alias yas="yarn android-staging"
+alias yap="yarn android-production"
+alias yaa="yarn android $port8081"
+alias yi="yarn ios"
+alias yii="yarn ios $port8081"
+alias yi16="yi $terminalVS --simulator $iPhone16"
+alias yi16p="yi $terminalVS --simulator $iPhone16Pro"
+alias yi16pp="yi $terminalVS --simulator $iPhone16Plus"
+alias yi16pm="yi $terminalVS --simulator $iPhone16PM"
+alias yi16e="yi $terminalVS --simulator $iPhone16e"
+alias yarns="yarn start --reset-cache"
+alias yarnt="yarn test"
+alias ys="yarn start"
+alias yarnss="yarns $port8081"
+alias yarnwipeios="rm -rf ./ios/Podfile.lock && rm -rf ./ios/Pods"
+alias yarnwipepackage="rm -rf node_modules && rm -rf package-lock.json && rm -rf yarn.lock"
+alias yarnwipe="yarnwipepackage && yarnwipeios"
+alias yarninstall="yarn install && cd ios && pod install && cd .."
+
+alias simulators="xcrun simctl list"
+alias simulator="xcrun simctl boot"
+alias iphone16="simulator $iPhone16"
+alias iphone16p="simulator $iPhone16Plus"
+alias iphone16pro="simulator $iPhone16Pro"
+alias iphone16pm="simulator $iPhone16PM"
+alias iphone16e="simulator $iPhone16e"
+
+# adb 관련 별칭
+alias 82="adb+ shell input keyevent 82"
+alias adbr="adbrFC"
+alias adbt="adb+ tcpip 5555"
+alias adbd="adb devices"
+alias adbk="adbkFC"
+alias adbs="adbsFC"
+
+alias capios="capiosFC"
+alias capand="capandFC"
+alias recios="iosRecordFC"
+# alias recand="adbsrnFC"
+
+# 기타 별칭
+alias z="agy ~/.zshrc"
+alias zf="agy ~/.zsh_functions"
+alias za="agy ~/.zsh_aliases"
+alias zp="agy ~/.zsh_projects"
+alias zs="agy ~/.zsh_sessions"
+alias zh="agy ~/.zsh_history"
+alias ze="agy ~/.zsh_env"
+
+alias zv="vi ~/.zshrc && s"
+alias ㅋ="agy ~/.zshrc"
+alias s="source ~/.zshrc"
+alias ㄴ="source ~/.zshrc"
+alias wd="watchman watch-del-all && pkill node"
+alias ㄱ="r"
+alias ㅓ="j"
+alias pc="pod cache clean --all"
+alias gpwd="pwd | pbcopy"
+alias genkey="echo $@ | md5 | pbcopy"
+
+# 여기에 다른 별칭들 추가
+alias spy="spyFC"
+alias vscode="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
+alias codex="agy . && exit"
+alias openx="open . && exit"
+alias shs="cd ~/shs"
+
+
+# deeplinkDUFC 관련 alias들
+alias dldu="deeplinkDUFC"
+alias dldc="deeplinkDCFC"
+
+alias t11="node /Users/zero/Workspace/private/WorkHelper/index.js trans"
+alias h11="node /Users/zero/Workspace/private/WorkHelper/index.js file"
+alias u11="node /Users/zero/Workspace/private/WorkHelper/index.js upload"
+
+alias scripts="node -p -e \"'\033[1m' + require('./package.json').name + ' (' + require('./package.json').version + ') scripts \033[0m\n\n'+Object.entries(require('./package.json').scripts).map(([c,s],i,a) => c + ' '.repeat(a.reduce((l, [k]) => Math.max(k.length, l), 0) - c.length) + (s ? '  :  ' + s : '')).join('\n').replace(/\/\*/ig, '\n/*')\""
+
+alias wak="youtube --parent-folder \"WAKTAVERSE\" $@"
+alias asmr="youtube --parent-folder \"ASMR\" $@"
+alias ise="youtube --parent-folder \"ISEGYE_IDOL\" $@"
+alias stell="youtube --parent-folder \"STELLIVE\" $@"
+
+# Added from custom user zshrc
+alias cps="code-push-standalone"
+alias ibrew="arch -x86_64 /usr/local/bin/brew"
+alias python="python3.10"
+alias torr="agy /Users/zero/Workspace/superleek/publish/torrent-download-history/."
+alias localserver="agy /Users/zero/Workspace/superleek/server/local-server/."
+alias keymap="cd /Applications/QtScrcpy.app/Contents/MacOS/keymap && open ."
+alias ddd="rm -rf /Users/zero/Library/Developer/Xcode/DerivedData/mazzum*"
+alias qq="dldu \$1"
+alias rmnpms="find . -name \"node_modules\" -type d -prune -exec rm -rf {} +"
+alias nt='node /Users/zero/Workspace/matchtech/mazzum-node/index.js'
+alias test="node /Users/zero/Workspace/superleek/cli-tools/node/index.js"

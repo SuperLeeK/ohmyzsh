@@ -42,3 +42,8 @@ alias s='source ~/.zshrc'
 alias ㄴ='s'
 
 alias ㅓ="j"
+
+# 추가 설정 파일 로드
+for file in ~/.zsh_{functions,aliases,projects,env}; do
+    [ -r "$file" ] && [ -f "$file" ] && source "$file"
+done

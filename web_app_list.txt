@@ -1,0 +1,5 @@
+# 웹앱 목록
+# 형식: "플랫폼명"|"프로그램명"|"프로그램주소"
+# 예시:
+#"chrome"|"ChatGPT"|"https://chatgpt.com/"
+#"safari"|"Notion"|"https://www.notion.so/"

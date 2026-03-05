@@ -268,7 +268,9 @@ install_nvm_node_stack() {
 }
 
 link_zshrc() {
-  msg "Linking .zshrc ..."
+  msg "Linking .zshrc and zsh configs..."
+  
+  # Link .zshrc
   if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]]; then
     cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d%H%M%S)"
   fi
@@ -277,6 +279,14 @@ link_zshrc() {
   else
     warn "$DOTFILES_DIR/zsh/.zshrc not found; leaving current ~/.zshrc in place."
   fi
+  
+  # Link extra zsh config files
+  local zsh_extras=(".zsh_aliases" ".zsh_functions" ".zsh_env" ".zsh_projects")
+  for file in "${zsh_extras[@]}"; do
+    if [[ -f "$DOTFILES_DIR/zsh/$file" ]]; then
+      ln -snf "$DOTFILES_DIR/zsh/$file" "$HOME/$file"
+    fi
+  done
 }
 
 set_default_shell() {
@@ -291,24 +301,148 @@ set_default_shell() {
   fi
 }
 
+install_mas_apps() {
+  local list_file="$DOTFILES_DIR/app_store_app_list.txt"
+  if [[ ! -f "$list_file" ]]; then
+    list_file="app_store_app_list.txt"
+  fi
+  
+  if [[ ! -f "$list_file" ]]; then
+    warn "app_store_app_list.txt not found. Skipping App Store apps."
+    return
+  fi
+
+  if ! command -v mas >/dev/null 2>&1; then
+    msg "Installing mas (Mac App Store CLI)..."
+    brew install mas || { warn "Failed to install mas"; return; }
+  fi
+
+  msg "Installing App Store apps..."
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    # Parse format: "AppName"|"AppID"
+    local app_name=$(echo "$line" | awk -F'|' '{print $1}' | tr -d '"')
+    local app_id=$(echo "$line" | awk -F'|' '{print $2}' | tr -d '"')
+    
+    if [[ -n "$app_name" && -n "$app_id" ]]; then
+      msg "Installing $app_name ($app_id)..."
+      mas install "$app_id" || warn "Failed to install $app_name"
+    fi
+  done < "$list_file"
+}
+
+install_web_apps() {
+  local list_file="$DOTFILES_DIR/web_app_list.txt"
+  if [[ ! -f "$list_file" ]]; then
+    list_file="web_app_list.txt"
+  fi
+  
+  if [[ ! -f "$list_file" ]]; then
+    warn "web_app_list.txt not found. Skipping Web apps."
+    return
+  fi
+
+  msg "Creating Web apps in ~/Applications/WebApps..."
+  mkdir -p "$HOME/Applications/WebApps"
+  
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    # Parse format: "Platform"|"AppName"|"URL" (e.g., "chrome"|"ChatGPT"|"https://chatgpt.com/")
+    local platform=$(echo "$line" | awk -F'|' '{print $1}' | tr -d '"')
+    local app_name=$(echo "$line" | awk -F'|' '{print $2}' | tr -d '"')
+    local app_url=$(echo "$line" | awk -F'|' '{print $3}' | tr -d '"')
+    
+    if [[ -n "$app_name" && -n "$app_url" ]]; then
+      local app_path="$HOME/Applications/WebApps/$app_name.app"
+      msg "Creating web app: $app_name -> $app_url"
+      
+      mkdir -p "$app_path/Contents/MacOS"
+      
+      # Create a simple bash script to open the URL
+      cat <<EOF > "$app_path/Contents/MacOS/$app_name"
+#!/usr/bin/env bash
+if [[ "$platform" == "chrome" ]] && command -v /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome >/dev/null 2>&1; then
+  open -a "Google Chrome" --args --app="$app_url"
+elif [[ "$platform" == "safari" ]]; then
+  open -a Safari "$app_url"
+else
+  open "$app_url"
+fi
+EOF
+      chmod +x "$app_path/Contents/MacOS/$app_name"
+    fi
+  done < "$list_file"
+}
+
+prompt_install_options() {
+  echo -e "\n\033[1;36m===== Installation Menu =====\033[0m"
+  echo "1. Oh My Zsh (Zsh, plugins, NVM, Node stack)"
+  echo "2. Homebrew Apps (CLI tools & Casks)"
+  echo "3. App Store Apps (via mas)"
+  echo "4. Web Apps (creating shortcuts)"
+  echo ""
+  read -p "Enter numbers separated by comma (e.g. 1,2,3,4) or 'all': " choices
+  
+  # Initialize flags
+  DO_OHMYZSH=0
+  DO_BREW=0
+  DO_MAS=0
+  DO_WEB=0
+  
+  if [[ "$choices" == "all" || -z "$choices" ]]; then
+    DO_OHMYZSH=1; DO_BREW=1; DO_MAS=1; DO_WEB=1
+  else
+    [[ "$choices" =~ 1 ]] && DO_OHMYZSH=1 || true
+    [[ "$choices" =~ 2 ]] && DO_BREW=1 || true
+    [[ "$choices" =~ 3 ]] && DO_MAS=1 || true
+    [[ "$choices" =~ 4 ]] && DO_WEB=1 || true
+  fi
+}
+
 main() {
   require_macos
   install_xcode_cli
-  install_homebrew
-  clone_repo
+  
+  prompt_install_options
+  
+  # We still need clone_repo if files are not local, but if user downloaded zip, it's fine.
+  # Let's run it anyway if they chose ohmyzsh or something, but actually dotfiles are used for plugins.
+  if [[ "$DO_OHMYZSH" == 1 || "$DO_BREW" == 1 ]]; then
+    clone_repo
+  fi
 
-  brew_bundle || true
-  brew_install_formulae
-  brew_install_casks
-  install_qtscrcpy
+  if [[ "$DO_BREW" == 1 ]]; then
+    install_homebrew
+    brew_bundle || true
+    brew_install_formulae
+    brew_install_casks
+    install_qtscrcpy
+  else
+    # if brew isn't installed but we need it for mas, it will be handled in install_mas_apps
+    true
+  fi
 
-  install_ohmyzsh
-  install_plugins
-  ensure_nvm_in_zshrc
-  install_nvm_node_stack
+  if [[ "$DO_OHMYZSH" == 1 ]]; then
+    # Homebrew might be needed for nvm/fzf, so ensure it's installed
+    install_homebrew
+    install_ohmyzsh
+    install_plugins
+    ensure_nvm_in_zshrc
+    install_nvm_node_stack
+    link_zshrc
+    set_default_shell
+  fi
+  
+  if [[ "$DO_MAS" == 1 ]]; then
+    # Brew is needed for mas
+    install_homebrew
+    install_mas_apps
+  fi
+  
+  if [[ "$DO_WEB" == 1 ]]; then
+    install_web_apps
+  fi
 
-  link_zshrc
-  set_default_shell
   msg "All done! Open a new terminal window (or run 'exec zsh')."
 }
 

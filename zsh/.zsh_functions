@@ -1,0 +1,781 @@
+lastGitFile=""
+# Git 관련 함수
+function gInit() {
+  if [ -n "$lastGitFile" ]
+  then
+    eval "lastGitFile=''"
+  fi
+}
+
+function gdFC() {
+  if [ $1 ]; then
+    eval "git diff $1"
+    eval "lastGitFile=$1"
+  elif [ -n "$lastGitFile" ]; then
+    eval "git diff $lastGitFile"
+  fi
+}
+
+function gaFC() {
+  if [ $1 ]; then
+    eval "git add $1"
+    eval "lastGitFile=$1"
+  elif [ -n "$lastGitFile" ]; then
+    eval "git add $lastGitFile"
+  fi
+}
+
+function grFC() {
+  if [ $1 ]; then
+    eval "git reset $1"
+    eval "lastGitFile=$1"
+  elif [ -n "$lastGitFile" ]; then
+    eval "git reset $lastGitFile"
+  fi
+}
+
+function gcoFC() {
+  if [ $1 ]; then
+    eval "git checkout $1"
+    eval "lastGitFile=$1"
+  elif [ -n "$lastGitFile" ]; then
+    eval "git checkout $lastGitFile"
+  fi
+}
+
+function gbFC() {
+  if [ $1 ]; then
+    eval "git branch $1"
+    eval "lastGitFile=$1"
+  fi
+}
+
+function gswFC() {
+  if [ $1 ]; then
+    eval "git switch $1"
+    eval "lastGitFile=$1"
+  elif [ -n "$lastGitFile" ]; then
+    eval "git switch $lastGitFile"
+  fi
+}
+
+# scrcpy 관련 함수
+function spyFC() {
+  local device=$1
+  local config_file="$HOME/.scrcpy_config"
+  local command="scrcpy -s $device --always-on-top --stay-awake --turn-screen-off --disable-screensaver --max-fps 60 --video-bit-rate 16M --shortcut-mod=lalt --no-audio"
+  eval "$command"
+}
+
+function update_window_info() {
+  window_info=$(osascript -e '
+    tell application "System Events"
+      set scrcpyProcess to first process whose name contains "scrcpy"
+      if exists scrcpyProcess then
+        set scrcpyWindow to first window of scrcpyProcess
+        set {x, y} to position of scrcpyWindow
+        set {width, height} to size of scrcpyWindow
+        return x & y & width & height
+      else
+        return "not_found"
+      end if
+    end tell
+  ')
+
+  if [ "$window_info" != "not_found" ]; then
+    # 모든 공백 제거
+    window_info=$(echo "$window_info" | tr -d ' ')
+    # 쉼표로 구분된 값을 배열로 변환 (zsh 방식)
+    info_array=(${(s:,:)window_info})
+    # 배열에 4개의 요소가 있는지 확인
+    echo $info_array
+    if [ ${#info_array[@]} -eq 4 ]; then
+      window_x=${info_array[1]}
+      window_y=${info_array[2]}
+      window_width=${info_array[3]}
+      window_height=${info_array[4]}
+      # 설정 파일 업데이트
+      echo "window_x=$window_x" > "$config_file"
+      echo "window_y=$window_y" >> "$config_file"
+      echo "window_width=$window_width" >> "$config_file"
+      echo "window_height=$window_height" >> "$config_file"
+      
+      echo "창 정보가 업데이트되었습니다: x=$window_x, y=$window_y, width=$window_width, height=$window_height"
+    else
+      echo "창 정보 형식이 올바르지 않습니다: $window_info"
+    fi
+  else
+    echo "scrcpy 창을 찾을 수 없습니다."
+  fi
+}
+
+function cleanup() {
+  local pid=$1
+  echo "정리 작업 수행 중..."
+  if ps -p $pid > /dev/null 2>&1; then
+    echo "scrcpy 프로세스 (PID: $pid) 종료 중..."
+    kill $pid
+    sleep 1
+    if ps -p $pid > /dev/null 2>&1; then
+      echo "scrcpy 프로세스가 여전히 실행 중입니다. 강제 종료합니다."
+      kill -9 $pid
+    fi
+  fi
+  close_scrcpy_window
+  echo "정리 작업 완료."
+}
+
+function close_scrcpy_window() {
+  osascript -e '
+    tell application "System Events"
+      set scrcpyProcess to first process whose name contains "scrcpy"
+      if exists scrcpyProcess then
+        set scrcpyWindow to first window of scrcpyProcess
+        click button 1 of scrcpyWindow
+      end if
+    end tell
+  '
+}
+
+# adb 관련 함수
+function adb+() {
+  adb devices | while read -r line
+  do
+  if [ ! "$line" = "" ] && [ "$(echo "$line" | awk '{print $2}')" = "device" ]
+  then
+      device=$(echo "$line" | awk '{print $1}')
+      echo "$device" "$@" ...
+      adb -s "$device" "$@"
+  fi
+  done
+}
+
+port="8081"
+function adbrFC() {
+  if [ $1 ]; then
+    eval "adb+ reverse tcp:$1 tcp:$1"
+    eval "port=$1"
+  elif [ -n "$port" ]; then
+    eval "adb+ reverse tcp:$port tcp:$port"
+  fi
+}
+
+function adbkFC() {
+  if [ $1 ]; then
+    eval _package=$(echo $1 | cut -d '/' -f1) && echo $_package
+    eval "adb+ shell am force-stop $_package"
+    eval "package=$_package"
+  elif [ -n "$package" ]; then
+    eval "adb+ shell am force-stop $package"
+  fi
+}
+
+function adbsFC() {
+  if [ $1 ]; then
+    eval "adb+ shell am start -n $1"
+    eval package=$(echo $1 | cut -d '/' -f1) && echo $package
+    eval "activity=$1"
+  elif [ -n "$activity" ]; then
+    eval "adb+ shell am start -n $activity"
+  fi
+}
+
+saveFilePath="/Users/zero/Dropbox/Records"
+# 스크린샷 및 녹화 관련 함수
+function capiosFC() {
+  if [ $1 ]; then
+    screenShotName=$1
+  fi
+  if [ -n "$screenShotName" ]; then
+    xcrun simctl io booted screenshot "$saveFilePath/[IOS]-$screenShotName.png"
+  fi
+}
+
+function capandFC() {
+  if [ $1 ]; then
+    screenShotName=$1
+  fi
+  if [ -n "$screenShotName" ]; then
+    adb+ shell screencap "/sdcard/screen.png"
+    adb+ pull "/sdcard/screen.png" "$saveFilePath/[AND]-$screenShotName.png"
+    adb+ shell rm "/sdcard/screen.png"
+  fi
+}
+
+function iosRecordFC() {
+  if [ $1 ]; then
+    screenRecordName=$1
+  fi
+  if [ -n "$screenRecordName" ]; then
+    xcrun simctl io booted recordVideo "$saveFilePath/[IOS]-$screenRecordName.mp4"
+  fi
+}
+
+# function adbsrnFC() {
+#   if [ $1 ]; then
+#     screenRecordName=$1
+#   fi
+#   if [ -n "$screenRecordName" ]; then
+#     echo "녹화를 중지하려면 Ctrl+C를 누르세요..."
+#     adb+ shell screenrecord "/sdcard/DCIM/Screenshots/lastest.mp4"
+#     trap 'adb+ pull "/sdcard/DCIM/Screenshots/lastest.mp4" "$saveFilePath/[AND]-$screenRecordName.mp4" && adb+ shell rm "/sdcard/DCIM/Screenshots/lastest.mp4"' INT
+#     wait
+#     adb pull "/sdcard/DCIM/Screenshots/lastest.mp4" "$saveFilePath/lastest.mp4"
+#     mv "$saveFilePath/lastest.mp4" "$saveFilePath/[AND]-$screenRecordName.mp4"
+#     adb shell rm "/sdcard/DCIM/Screenshots/lastest.mp4"
+#   fi
+# }
+
+function appInTossFC() {
+  if [ $1 ]; then
+    local target=$1
+    local withClose=${2:-true}  # 기본값은 true (기존 동작 유지)
+    
+    # withClose가 true일 때만 terminate 실행
+    if [ "$withClose" = "true" ]; then
+      xcrun simctl terminate "iPhone 16" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro Max" kr.co.matchtech.mazzum.develop
+    fi
+
+    xcrun simctl openurl "iPhone 16" "intoss://test-mazzum-miniapp?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro" "intoss://test-mazzum-miniapp?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro Max" "intoss://test-mazzum-miniapp?target=$target"
+
+    # 연결된 모든 안드로이드 기기 목록 가져오기
+    local devices=($(adb devices | grep -w "device" | grep -v "List" | awk '{print $1}'))
+
+    if [ ${#devices[@]} -eq 0 ]; then
+      echo "연결된 안드로이드 기기가 없습니다."
+      return 1
+    fi
+
+    local android_param=$(echo "$target" | sed 's/&/\\&/g')
+    
+    echo "연결된 기기 ${#devices[@]}개에 딥링크 발송 중..."
+    for device in "${devices[@]}"; do
+      # Android 버전 확인 (API 레벨)
+      api_level=$(adb -s "$device" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')
+      android_version=$(adb -s "$device" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r')
+      
+      echo "기기 $device (Android $android_version, API $api_level)에 발송 중..."
+      
+      # API 35 (Android 15) 이상인지 확인
+      if [ "$api_level" -ge 35 ]; then
+        echo "  → Android 15+ 기기로 감지됨"
+      else
+        echo "  → Android 14 이하 기기로 감지됨"
+      fi
+      
+      adb -s "$device" shell am start -W -a android.intent.action.VIEW -d "intoss://test-mazzum-miniapp?target=$android_param"
+    done
+  fi
+}
+# 딥링크 관련 함수
+function deeplinkDUFC() {
+  if [ $1 ]; then
+    local target=$1
+    local withClose=${2:-false}  # 기본값은 true (기존 동작 유지)
+    
+    # withClose가 true일 때만 terminate 실행
+    if [ "$withClose" = "true" ]; then
+      xcrun simctl terminate "iPhone 16" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro Max" kr.co.matchtech.mazzum.develop
+    fi
+
+    xcrun simctl openurl "iPhone 16" "mazzum.user://matchtech?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro" "mazzum.user://matchtech?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro Max" "mazzum.user://matchtech?target=$target"
+
+    # 연결된 모든 안드로이드 기기 목록 가져오기
+    local devices=($(adb devices | grep -w "device" | grep -v "List" | awk '{print $1}'))
+
+    if [ ${#devices[@]} -eq 0 ]; then
+      echo "연결된 안드로이드 기기가 없습니다."
+      return 1
+    fi
+
+    local android_param=$(echo "$target" | sed 's/&/\\&/g')
+    
+    echo "연결된 기기 ${#devices[@]}개에 딥링크 발송 중..."
+    for device in "${devices[@]}"; do
+      # Android 버전 확인 (API 레벨)
+      api_level=$(adb -s "$device" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')
+      android_version=$(adb -s "$device" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r')
+      
+      echo "기기 $device (Android $android_version, API $api_level)에 발송 중..."
+      
+      # API 35 (Android 15) 이상인지 확인
+      if [ "$api_level" -ge 35 ]; then
+        echo "  → Android 15+ 기기로 감지됨"
+      else
+        echo "  → Android 14 이하 기기로 감지됨"
+      fi
+      
+      adb -s "$device" shell am start -W -a android.intent.action.VIEW -d "mazzum.user://matchtech?target=$android_param"
+    done
+  fi
+}
+
+function deeplinkDCFC() {
+  if [ $1 ]; then
+    local target=$1
+    local withClose=${2:-false}  # 기본값은 true (기존 동작 유지)
+    
+    # withClose가 true일 때만 terminate 실행
+    if [ "$withClose" = "true" ]; then
+      xcrun simctl terminate "iPhone 16" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro" kr.co.matchtech.mazzum.develop
+      xcrun simctl terminate "iPhone 16 Pro Max" kr.co.matchtech.mazzum.develop
+    fi
+
+    xcrun simctl openurl "iPhone 16" "mazzum.counselor://matchtech?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro" "mazzum.counselor://matchtech?target=$target"
+    xcrun simctl openurl "iPhone 16 Pro Max" "mazzum.counselor://matchtech?target=$target"
+
+    # 연결된 모든 안드로이드 기기 목록 가져오기
+    local devices=($(adb devices | grep -w "device" | grep -v "List" | awk '{print $1}'))
+
+    if [ ${#devices[@]} -eq 0 ]; then
+      echo "연결된 안드로이드 기기가 없습니다."
+      return 1
+    fi
+
+    local android_param=$(echo "$target" | sed 's/&/\\&/g')
+    
+    echo "연결된 기기 ${#devices[@]}개에 딥링크 발송 중..."
+    for device in "${devices[@]}"; do
+      # Android 버전 확인 (API 레벨)
+      api_level=$(adb -s "$device" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')
+      android_version=$(adb -s "$device" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r')
+      
+      echo "기기 $device (Android $android_version, API $api_level)에 발송 중..."
+      
+      # API 35 (Android 15) 이상인지 확인
+      if [ "$api_level" -ge 35 ]; then
+        echo "  → Android 15+ 기기로 감지됨"
+      else
+        echo "  → Android 14 이하 기기로 감지됨"
+      fi
+      
+      adb -s "$device" shell am start -W -a android.intent.action.VIEW -d "mazzum.counselor://matchtech?target=$android_param" kr.co.matchtech.mazzum.develop
+    done
+  fi
+}
+
+function killIosApp() {
+  xcrun simctl terminate "iPhone 16" "kr.co.matchtech.mazzum.develop"
+  xcrun simctl terminate "iPhone 16 Pro" "kr.co.matchtech.mazzum.develop"
+  xcrun simctl terminate "iPhone 16 Pro Max" "kr.co.matchtech.mazzum.develop"
+}
+
+# 기타 함수
+function cpt() {
+    echo $(date +%y%m%d%H%M)
+}
+
+function combineFC() {
+  if [ $1 ]; then
+    eval "cat *.txt >> \"$1.txt\""
+  fi
+}
+
+alias gcbt="git-commits-by-target"
+function git-commits-by-target() {
+  local days=${1:-7}
+  
+  # 타겟 목록 추출
+  local targets=$(git log --author="ZeroMatchtech" --pretty=format:"%s" --since="$days days ago" | 
+                 grep -v "Merge branch" | 
+                 grep -o "\[[^]]*\]" | 
+                 sort | 
+                 uniq)
+  
+  {
+    # 각 타겟별로 처리
+    echo "$targets" | while read target; do
+      if [ -n "$target" ]; then
+        echo -e "\nㅁ ${target}";
+        git log --author="ZeroMatchtech" --pretty=format:"%s" --since="$days days ago" | 
+        grep -v "Merge branch" | 
+        grep -F "$target" | 
+        sed -E "s/\\${target}[[:space:]]*/ - /"
+      fi
+    done
+  } | tee /dev/tty | pbcopy
+  
+  echo -e "\n결과가 클립보드에 복사되었습니다."
+}
+
+# 딥링크 관련 alias들
+# 사용자 앱 딥링크
+alias dldu="deeplinkDUFC"                    # 기본 딥링크 (terminate 실행)
+function dldu-nc() { deeplinkDUFC "$1" false; };  # terminate 없이 딥링크
+
+alias adldu="appInTossFC"
+
+# 상담사 앱 딥링크  
+alias dldc="deeplinkDCFC"                    # 기본 딥링크 (terminate 실행)
+function dldc-nc() { deeplinkDCFC "$1" false; };
+
+# Added from custom user zshrc
+command_not_found_handle() {
+  if [ -f "$1.sh" ]; then
+    ./"$1.sh" "${@:2}"
+  else
+    echo "zsh: 명령을 찾을 수 없습니다: $1" >&2
+    return 127
+  fi
+}
+
+function link-cli() {
+  [ -f /Users/zero/Workspace/superleek/cli-tools/link-cli.sh ] && bash /Users/zero/Workspace/superleek/cli-tools/link-cli.sh
+}
+
+function gitbranchclear() {
+  local current_user=$(git config user.name)
+  echo "현재 사용자: $current_user"
+  echo ""
+  
+  # 로컬에서 본인이 생성한 feature 브랜치 중 develop에 머지된 것들
+  echo "=== 삭제될 로컬 feature 브랜치들 (본인 생성) ==="
+  local local_branches=$(git branch --merged develop | grep "feature/" | while read branch; do
+    branch=$(echo $branch | xargs)  # 공백 제거
+    author=$(git for-each-ref --format='%(authorname)' refs/heads/$branch)
+    if [[ "$author" == "$current_user" ]]; then
+      echo $branch
+    fi
+  done)
+  
+  if [[ -n "$local_branches" ]]; then
+    echo "$local_branches"
+    echo "$local_branches" | xargs -I {} git branch -d {}
+    echo "로컬 브랜치 삭제 완료"
+  else
+    echo "삭제할 로컬 브랜치가 없습니다."
+  fi
+  
+  echo ""
+  
+  # 리모트에서 본인이 생성한 feature 브랜치 중 develop에 머지된 것들
+  echo "=== 삭제될 리모트 feature 브랜치들 (본인 생성) ==="
+  local remote_branches=$(git branch -r --merged develop | grep "origin/feature/" | while read branch; do
+    branch=$(echo $branch | xargs | sed 's/origin\///')  # origin/ 제거 및 공백 제거
+    author=$(git for-each-ref --format='%(authorname)' refs/remotes/origin/$branch)
+    if [[ "$author" == "$current_user" ]]; then
+      echo $branch
+    fi
+  done)
+  
+  if [[ -n "$remote_branches" ]]; then
+    echo "$remote_branches"
+    echo "$remote_branches" | xargs -I {} git push --delete origin {}
+    echo "리모트 브랜치 삭제 완료"
+  else
+    echo "삭제할 리모트 브랜치가 없습니다."
+  fi
+}
+
+function gitfixclear() {
+  local current_user=$(git config user.name)
+  echo "현재 사용자: $current_user"
+  echo ""
+  
+  # 로컬에서 본인이 생성한 fix 브랜치 중 develop에 머지된 것들
+  echo "=== 삭제될 로컬 fix 브랜치들 (본인 생성) ==="
+  local local_branches=$(git branch --merged develop | grep "fix/" | while read branch; do
+    branch=$(echo $branch | xargs)  # 공백 제거
+    author=$(git for-each-ref --format='%(authorname)' refs/heads/$branch)
+    if [[ "$author" == "$current_user" ]]; then
+      echo $branch
+    fi
+  done)
+  
+  if [[ -n "$local_branches" ]]; then
+    echo "$local_branches"
+    echo "$local_branches" | xargs -I {} git branch -d {}
+    echo "로컬 브랜치 삭제 완료"
+  else
+    echo "삭제할 로컬 브랜치가 없습니다."
+  fi
+  
+  echo ""
+  
+  # 리모트에서 본인이 생성한 fix 브랜치 중 develop에 머지된 것들
+  echo "=== 삭제될 리모트 fix 브랜치들 (본인 생성) ==="
+  local remote_branches=$(git branch -r --merged develop | grep "origin/fix/" | while read branch; do
+    branch=$(echo $branch | xargs | sed 's/origin\///')  # origin/ 제거 및 공백 제거
+    author=$(git for-each-ref --format='%(authorname)' refs/remotes/origin/$branch)
+    if [[ "$author" == "$current_user" ]]; then
+      echo $branch
+    fi
+  done)
+  
+  if [[ -n "$remote_branches" ]]; then
+    echo "$remote_branches"
+    echo "$remote_branches" | xargs -I {} git push --delete origin {}
+    echo "리모트 브랜치 삭제 완료"
+  else
+    echo "삭제할 리모트 브랜치가 없습니다."
+  fi
+}
+
+function gitdeployclear() {
+  local keep_count=${1:-2}  # 기본값 2개 보존
+  local current_user=$(git config user.name)
+  
+  echo "현재 사용자: $current_user"
+  echo "최신 ${keep_count}개씩 보존합니다"
+  echo ""
+  
+  # 모든 deploy 브랜치들 가져오기 (최신순 비교용)
+  local all_deploy_branches=()
+  local my_deploy_branches=()
+  
+  while IFS= read -r branch; do
+    branch=$(echo $branch | xargs)  # 공백 제거
+    author=$(git for-each-ref --format='%(authorname)' refs/heads/$branch)
+    all_deploy_branches+=("$branch")
+    if [[ "$author" == "$current_user" ]]; then
+      my_deploy_branches+=("$branch")
+    fi
+  done <<< "$(git branch | grep 'deploy/')"
+  
+  if [[ ${#my_deploy_branches[@]} -eq 0 ]]; then
+    echo "본인이 생성한 deploy 브랜치가 없습니다."
+    return
+  fi
+  
+  echo "전체 deploy 브랜치: ${#all_deploy_branches[@]}개"
+  echo "본인 deploy 브랜치: ${#my_deploy_branches[@]}개"
+  
+  echo "=== 모든 브랜치를 날짜순으로 정렬 ==="
+  
+  # 모든 브랜치를 날짜순으로 정렬 (최신순) - 최신 기준 판단용
+  local sorted_all_branches=($(printf '%s\n' "${all_deploy_branches[@]}" | sort -t'/' -k4,4nr))
+  
+  echo "정렬된 전체 브랜치 목록:"
+  for branch in "${sorted_all_branches[@]}"; do
+    author=$(git for-each-ref --format='%(authorname)' refs/heads/$branch)
+    echo "  $branch (작성자: $author)"
+  done
+  
+  # 각 platform/target 조합의 최신 상태 추적
+  declare -A latest_for_combination
+  
+  # target/platform 조합들 (all과 both 제거)
+  local all_combinations=("usr_web" "usr_app" "csr_web" "csr_app")
+  
+  for branch in "${sorted_all_branches[@]}"; do
+    PARTS=(${(s:/:)branch})
+    if [[ ${#PARTS[@]} -eq 6 ]]; then
+      local date_part=${PARTS[4]}
+      local target=${PARTS[5]}    # usr/csr
+      local platform=${PARTS[6]}  # web/app
+      
+      echo "처리 중: $branch (날짜: $date_part, 타겟: $target, 플랫폼: $platform)"
+      
+      # 개별 조합만 처리 (all/both 없음)
+      local combo="${target}_${platform}"
+      if [[ -z "${latest_for_combination[$combo]}" ]]; then
+        latest_for_combination[$combo]="$branch"
+        echo "  -> $combo 조합의 최신으로 설정"
+      fi
+    fi
+  done
+  
+  echo ""
+  echo "=== 각 조합별 최신 브랜치 ==="
+  for combo in "${(@k)latest_for_combination}"; do
+    echo "$combo: ${latest_for_combination[$combo]}"
+  done
+  
+  echo ""
+  echo "=== 보존될 브랜치들 계산 중 ==="
+  
+  # 보존할 브랜치들 선별 (각 조합별로 최신 keep_count개, 단 본인 브랜치만)
+  declare -A preserve_branches
+  for combo in "${all_combinations[@]}"; do
+    local combo_branches=()
+    for branch in "${sorted_all_branches[@]}"; do
+      # 본인 브랜치인지 확인
+      local is_my_branch=false
+      for my_branch in "${my_deploy_branches[@]}"; do
+        if [[ "$branch" == "$my_branch" ]]; then
+          is_my_branch=true
+          break
+        fi
+      done
+      
+      # 본인 브랜치가 아니면 건너뛰기
+      if [[ "$is_my_branch" == "false" ]]; then
+        continue
+      fi
+      PARTS=(${(s:/:)branch})
+      if [[ ${#PARTS[@]} -eq 6 ]]; then
+        local target=${PARTS[5]}
+        local platform=${PARTS[6]}
+        local current_combo="${target}_${platform}"
+        
+        # 현재 조합과 일치하는 브랜치만 추가
+        if [[ "$current_combo" == "$combo" ]]; then
+          combo_branches+=("$branch")
+        fi
+      fi
+    done
+    
+    # 이 조합에서 최신 keep_count개 보존
+    for (( i=0; i<$keep_count && i<${#combo_branches[@]}; i++ )); do
+      preserve_branches["${combo_branches[$i]}"]="1"
+      echo "보존: ${combo_branches[$i]} (조합 $combo의 $((i+1))번째)"
+    done
+  done
+  
+  # 삭제할 브랜치들 결정 (본인 브랜치 중에서만)
+  local branches_to_delete=()
+  for branch in "${my_deploy_branches[@]}"; do
+    if [[ -z "${preserve_branches[$branch]}" ]]; then
+      branches_to_delete+=("$branch")
+    fi
+  done
+  
+  # 삭제 실행 (일단 목록만 표시)
+  if [[ ${#branches_to_delete[@]} -gt 0 ]]; then
+    echo ""
+    echo "=== 삭제될 deploy 브랜치들 ==="
+    printf '%s\n' "${branches_to_delete[@]}"
+    echo ""
+    echo "실제 삭제를 원하면 함수 내의 주석을 해제하세요."
+    # printf '%s\n' "${branches_to_delete[@]}" | xargs -I {} git branch -D {}
+    # echo "로컬 deploy 브랜치 삭제 완료"
+  else
+    echo "삭제할 deploy 브랜치가 없습니다."
+  fi
+}
+
+function gittagclear() {
+  local keep_count=${1:-5}  # 기본값 5개 보존
+  local current_user=$(git config user.name)
+  
+  echo "현재 사용자: $current_user"
+  echo "각 platform/target 조합별로 최신 ${keep_count}개씩 보존합니다"
+  echo ""
+  
+  # deploy로 시작하는 모든 태그 가져오기
+  local all_deploy_tags=($(git tag -l "deploy/*" | sort))
+  
+  if [[ ${#all_deploy_tags[@]} -eq 0 ]]; then
+    echo "deploy 태그가 없습니다."
+    return
+  fi
+  
+  echo "전체 deploy 태그: ${#all_deploy_tags[@]}개"
+  
+  # platform/target 조합별로 그룹핑
+  declare -A platform_target_groups
+  
+  for tag in "${all_deploy_tags[@]}"; do
+    # deploy/prd/1.5.0/2509011213/usr/web 형태 파싱 (target/platform 순서)
+    PARTS=(${(s:/:)tag})
+    if [[ ${#PARTS[@]} -eq 6 ]]; then
+      local env=${PARTS[2]}        # prd/stg
+      local version=${PARTS[3]}    # 1.5.0
+      local date_part=${PARTS[4]}  # 2509011213
+      local target=${PARTS[5]}     # usr/csr
+      local platform=${PARTS[6]}   # web/app
+      
+      local group_key="${env}_${version}_${target}_${platform}"
+      
+      if [[ -z "${platform_target_groups[$group_key]}" ]]; then
+        platform_target_groups[$group_key]="$tag"
+      else
+        platform_target_groups[$group_key]="${platform_target_groups[$group_key]} $tag"
+      fi
+    fi
+  done
+  
+  local tags_to_delete=()
+  
+  echo "=== 각 조합별 태그 정리 ==="
+  for group_key in "${(@k)platform_target_groups}"; do
+    local group_tags=(${(s: :)platform_target_groups[$group_key]})
+    
+    # 날짜 기준 내림차순 정렬 (최신순)
+    local sorted_group=($(printf '%s\n' "${group_tags[@]}" | sort -t'/' -k4,4nr))
+    
+    echo "그룹 $group_key: ${#sorted_group[@]}개 태그"
+    
+    # 최신 keep_count개 보존, 나머지 삭제 대상에 추가
+    for (( i=0; i<${#sorted_group[@]}; i++ )); do
+      if [[ $i -lt $keep_count ]]; then
+        echo "  보존: ${sorted_group[$i]}"
+      else
+        echo "  삭제: ${sorted_group[$i]}"
+        tags_to_delete+=("${sorted_group[$i]}")
+      fi
+    done
+    echo ""
+  done
+  
+  # 삭제 실행 (일단 목록만 표시)
+  if [[ ${#tags_to_delete[@]} -gt 0 ]]; then
+    echo "=== 삭제될 태그들 ==="
+    printf '%s\n' "${tags_to_delete[@]}"
+    echo ""
+    echo "실제 삭제를 원하면 아래 주석을 해제하세요:"
+    echo "# printf '%s\\n' \"\${tags_to_delete[@]}\" | xargs -I {} git tag -d {}"
+    echo "# git push origin \$(printf ':%s ' \"\${tags_to_delete[@]}\")"
+    
+    # 실제 삭제 명령어 (주석 처리)
+    # printf '%s\n' "${tags_to_delete[@]}" | xargs -I {} git tag -d {}
+    # git push origin $(printf ':%s ' "${tags_to_delete[@]}")
+    # echo "로컬 및 리모트 태그 삭제 완료"
+  else
+    echo "삭제할 태그가 없습니다."
+  fi
+}
+
+# 주간 업무 보고용 git 로그 추출 함수
+# 사용법: git-weekly YYMMDD YYMMDD
+function git-weekly() {
+    if [ "$#" -ne 2 ]; then
+        echo "Usage: git-weekly <StartDate YYMMDD> <EndDate YYMMDD>"
+        echo "Example: git-weekly 251219 251226"
+        return 1
+    fi
+
+    local start_input=$1
+    local end_input=$2
+
+    # 날짜 포맷 변환 (YYMMDD -> YYYY-MM-DD)
+    # macOS date 명령어 사용 (-j -f)
+    local start_date=$(date -j -f "%y%m%d" "$start_input" "+%Y-%m-%d")
+    local end_date=$(date -j -f "%y%m%d" "$end_input" "+%Y-%m-%d")
+
+    echo "📅 조회 기간: $start_date ~ $end_date"
+
+    git log --author="ZeroMatchtech" \
+        --since="$start_date" \
+        --until="$end_date 23:59:59" \
+        --pretty=format:"%s" \
+        --no-merges | \
+    sort | \
+    awk '
+    {
+        if (match($0, /^\[[^]]+\]/)) {
+            cat = substr($0, RSTART, RLENGTH)
+            msg = substr($0, RSTART + RLENGTH)
+            sub(/^ */, "", msg)
+        } else {
+            cat = "[기타]"
+            msg = $0
+        }
+        if (cat != prev_cat) {
+            if (NR > 1) print ""
+            print cat
+            prev_cat = cat
+        }
+        print "- " msg
+    }'
+}

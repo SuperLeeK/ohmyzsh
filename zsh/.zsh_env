@@ -1,0 +1,77 @@
+# Android SDK 설정
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+
+# Java 설정
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
+
+# 기타 환경 변수
+export NOWDATE=$(date +"%Y-%m-%d")
+export NOW=$(date +"%Y-%m-%d %I.%M %p")
+export GOOGLE_APPLICATION_CREDENTIALS="/Users/zero/Workspace/cert/googleCloudConsole/firebase-distribution/mazzum-d2afc-837a1ac5d480.json"
+
+# 시뮬레이터 설정
+note5="0815f865eeef0804"
+note9="2751e5501e217ece"
+note9ip="172.30.1.49:5555"
+ultra="R3CN20FTN1T"
+fold="emulator-5554"
+fold6="R3CX709375A"
+fold6ip="172.30.1.56:5555"
+fold6tls="adb-R3CX709375A-n2oie7._adb-tls-connect._tcp"
+fold4="R3CT909LAQT"
+fold4ip="172.30.1.44:5555"
+fold4tls="adb-R3CT909LAQT-J48GvM._adb-tls-connect._tcp"
+s9="21637a832b057ece"
+s9ip="172.30.1.39:5555"
+s25p="emulator-5554"
+s25u="emulator-5556"
+jcw="R3CN50DQF9R"
+jcwip="172.30.1.32:5555"
+
+# 스크린샷 및 녹화 설정
+dropBox="/Users/zero/Dropbox/스크린샷"
+oneDrive="/Users/zero/OneDrive/Media"
+saveFilePath=$oneDrive
+screenShotName="ScreenShot"
+screenRecordName="ScreenRecord"
+
+# 기타 설정
+export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+export PUPPETEER_EXECUTABLE_PATH=`which chromium`
+# PATH 중복 제거 함수
+typeset -U PATH path
+
+# PATH 설정
+path=(
+    $HOME/.rbenv/shims
+    /usr/local/opt/ruby/bin
+    /opt/homebrew/bin
+    $HOME/.mint/bin
+    $HOME/.yarn/bin
+    $HOME/.config/yarn/global/node_modules/.bin
+    $ANDROID_HOME/emulator
+    $ANDROID_HOME/tools
+    $ANDROID_HOME/tools/bin
+    $ANDROID_HOME/platform-tools
+    $JAVA_HOME/bin
+    $HOME/.local/bin
+    ~/shs
+    /opt/homebrew/opt/llvm/bin
+    /Users/zero/.antigravity/antigravity/bin
+    $path
+)
+export PATH
+
+export LDFLAGS="-L/opt/homebrew/opt/llvm/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/llvm/include"
+export REACT_EDITOR=atom
+
+# rbenv 설정
+[[ -d ~/.rbenv ]] && \
+  export PATH=${HOME}/.rbenv/bin:${PATH} && \
+  eval "$(rbenv init -)"
+
+# SDKMAN 설정 (마지막에 위치해야 함)
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
